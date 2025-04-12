@@ -17,3 +17,7 @@ This repository contains the BlackLayer leads management application.
 
 ## Deployment
 Deployment is handled automatically through GitHub Actions CI/CD pipeline.
+
+
+## Last Updated
+Sat Apr 12 15:49:44 UTC 2025
