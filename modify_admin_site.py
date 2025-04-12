@@ -1,0 +1,130 @@
+#!/usr/bin/env python
+import os
+import django
+
+# Set up Django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+django.setup()
+
+from django.contrib import admin
+from django.contrib.auth.models import User
+from django.contrib.auth.admin import UserAdmin
+
+# Create a custom AdminSite
+class CustomAdminSite(admin.AdminSite):
+    def get_app_list(self, request):
+        app_list = super().get_app_list(request)
+        
+        # Find the app with the USERS section
+        for app in app_list:
+            if app.get('name') == 'USERS' or app.get('app_label') == 'auth':
+                # Get the models in this app
+                models = app['models']
+                
+                # Find the User model
+                user_model = None
+                for i, model in enumerate(models):
+                    if model['object_name'] == 'User':
+                        user_model = models.pop(i)
+                        break
+                
+                # If we found the User model, put it at the beginning
+                if user_model:
+                    models.insert(0, user_model)
+                    app['models'] = models
+        
+        return app_list
+
+# Create a new admin site
+custom_site = CustomAdminSite(name='custom_admin')
+
+# Register all models from the default admin site to our custom one
+for model, model_admin in list(admin.site._registry.items()):
+    if model == User:
+        # Register User with the default UserAdmin
+        custom_site.register(User, UserAdmin)
+    else:
+        # Register all other models with their current admin
+        custom_site.register(model, type(model_admin))
+
+# Replace the default admin site
+admin.site = custom_site
+admin.sites.site = custom_site
+
+print("Replaced default admin site with custom admin site")
+
+# Create a file to apply this change on startup
+custom_admin_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'custom_admin_site.py')
+with open(custom_admin_file, 'w') as f:
+    f.write("""
+from django.contrib import admin
+from django.contrib.auth.models import User
+from django.contrib.auth.admin import UserAdmin
+
+# Create a custom AdminSite
+class CustomAdminSite(admin.AdminSite):
+    def get_app_list(self, request):
+        app_list = super().get_app_list(request)
+        
+        # Find the app with the USERS section
+        for app in app_list:
+            if app.get('name') == 'USERS' or app.get('app_label') == 'auth':
+                # Get the models in this app
+                models = app['models']
+                
+                # Find the User model
+                user_model = None
+                for i, model in enumerate(models):
+                    if model['object_name'] == 'User':
+                        user_model = models.pop(i)
+                        break
+                
+                # If we found the User model, put it at the beginning
+                if user_model:
+                    models.insert(0, user_model)
+                    app['models'] = models
+        
+        return app_list
+
+# Create a new admin site
+custom_site = CustomAdminSite(name='custom_admin')
+
+# Register all models from the default admin site to our custom one
+for model, model_admin in list(admin.site._registry.items()):
+    if model == User:
+        # Register User with the default UserAdmin
+        custom_site.register(User, UserAdmin)
+    else:
+        # Register all other models with their current admin
+        custom_site.register(model, type(model_admin))
+
+# Replace the default admin site
+admin.site = custom_site
+admin.sites.site = custom_site
+""")
+    print(f"Created {custom_admin_file}")
+
+# Update the config/urls.py file to import this custom admin site
+urls_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config', 'urls.py')
+if os.path.exists(urls_file):
+    with open(urls_file, 'r') as f:
+        urls_content = f.read()
+    
+    # Add import for our custom admin site
+    if 'import custom_admin_site' not in urls_content:
+        # Find the first import line
+        import_index = urls_content.find('import')
+        if import_index >= 0:
+            # Insert our import after the first import
+            new_content = urls_content[:import_index] + 'import custom_admin_site\n' + urls_content[import_index:]
+            
+            # Write the updated content
+            with open(urls_file, 'w') as f:
+                f.write(new_content)
+                print(f"Updated {urls_file} to import custom_admin_site")
+        else:
+            print(f"Could not find import statement in {urls_file}")
+    else:
+        print(f"custom_admin_site already imported in {urls_file}")
+else:
+    print(f"urls.py not found at {urls_file}")

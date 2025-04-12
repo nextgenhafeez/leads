@@ -1,0 +1,393 @@
+#!/usr/bin/env python
+import os
+import django
+
+# Set up Django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+django.setup()
+
+# Now we can import Django models
+from django.contrib import admin
+from django.db import models
+from django.contrib.auth.models import User
+
+# Clear existing model registrations for our app
+from django.contrib.admin.sites import site
+for model in list(site._registry.keys()):
+    if model.__module__.startswith('leadsapp.'):
+        site.unregister(model)
+
+# Define or update models
+from leadsapp.models import Lead
+
+# Update Lead model if it exists
+if hasattr(Lead, '_meta'):
+    print("Lead model exists, keeping it")
+else:
+    print("Creating Lead model")
+    class Lead(models.Model):
+        name = models.CharField(max_length=100)
+        email = models.EmailField()
+        phone = models.CharField(max_length=20, blank=True)
+        company = models.CharField(max_length=100, blank=True)
+        status = models.CharField(max_length=20, choices=[
+            ('new', 'New'),
+            ('contacted', 'Contacted'),
+            ('qualified', 'Qualified'),
+            ('lost', 'Lost'),
+            ('won', 'Won'),
+        ], default='new')
+        notes = models.TextField(blank=True)
+        created_at = models.DateTimeField(auto_now_add=True)
+        updated_at = models.DateTimeField(auto_now=True)
+
+        def __str__(self):
+            return self.name
+
+# Create new models
+class Company(models.Model):
+    name = models.CharField(max_length=100)
+    address = models.TextField(blank=True)
+    website = models.URLField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.name
+    
+    class Meta:
+        app_label = 'leadsapp'
+        verbose_name_plural = "Companies"
+
+class Agent(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.user.username
+    
+    class Meta:
+        app_label = 'leadsapp'
+
+class SourceType(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.name
+    
+    class Meta:
+        app_label = 'leadsapp'
+
+class Source(models.Model):
+    name = models.CharField(max_length=100)
+    source_type = models.ForeignKey(SourceType, on_delete=models.CASCADE)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.name
+    
+    class Meta:
+        app_label = 'leadsapp'
+
+class LeadsGroup(models.Model):
+    name = models.CharField(max_length=100)
+    leads = models.ManyToManyField(Lead)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.name
+    
+    class Meta:
+        app_label = 'leadsapp'
+
+class Activity(models.Model):
+    lead = models.ForeignKey(Lead, on_delete=models.CASCADE)
+    agent = models.ForeignKey(Agent, on_delete=models.CASCADE)
+    activity_type = models.CharField(max_length=50, choices=[
+        ('call', 'Call'),
+        ('email', 'Email'),
+        ('meeting', 'Meeting'),
+        ('note', 'Note'),
+    ])
+    description = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"{self.activity_type} - {self.lead.name}"
+    
+    class Meta:
+        app_label = 'leadsapp'
+        verbose_name_plural = "Activities"
+
+class Messages(models.Model):
+    lead = models.ForeignKey(Lead, on_delete=models.CASCADE)
+    sender = models.ForeignKey(User, on_delete=models.CASCADE)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Message to {self.lead.name}"
+    
+    class Meta:
+        app_label = 'leadsapp'
+        verbose_name_plural = "Messages"
+
+class Files(models.Model):
+    lead = models.ForeignKey(Lead, on_delete=models.CASCADE)
+    file = models.FileField(upload_to='lead_files/')
+    description = models.CharField(max_length=255, blank=True)
+    uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"File for {self.lead.name}"
+    
+    class Meta:
+        app_label = 'leadsapp'
+        verbose_name_plural = "Files"
+
+class Followups(models.Model):
+    lead = models.ForeignKey(Lead, on_delete=models.CASCADE)
+    agent = models.ForeignKey(Agent, on_delete=models.CASCADE)
+    date = models.DateTimeField()
+    notes = models.TextField(blank=True)
+    completed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"Followup for {self.lead.name}"
+    
+    class Meta:
+        app_label = 'leadsapp'
+        verbose_name_plural = "Followups"
+
+class Form(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    fields = models.JSONField(default=dict)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.name
+    
+    class Meta:
+        app_label = 'leadsapp'
+
+class Invitation(models.Model):
+    email = models.EmailField()
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    invited_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    token = models.CharField(max_length=100)
+    accepted = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Invitation to {self.email}"
+    
+    class Meta:
+        app_label = 'leadsapp'
+
+# Update models.py file
+with open('leadsapp/models.py', 'w') as f:
+    f.write("""from django.db import models
+from django.contrib.auth.models import User
+
+class Lead(models.Model):
+    name = models.CharField(max_length=100)
+    email = models.EmailField()
+    phone = models.CharField(max_length=20, blank=True)
+    company = models.CharField(max_length=100, blank=True)
+    status = models.CharField(max_length=20, choices=[
+        ('new', 'New'),
+        ('contacted', 'Contacted'),
+        ('qualified', 'Qualified'),
+        ('lost', 'Lost'),
+        ('won', 'Won'),
+    ], default='new')
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+class Company(models.Model):
+    name = models.CharField(max_length=100)
+    address = models.TextField(blank=True)
+    website = models.URLField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.name
+    
+    class Meta:
+        verbose_name_plural = "Companies"
+
+class Agent(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.user.username
+
+class SourceType(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.name
+
+class Source(models.Model):
+    name = models.CharField(max_length=100)
+    source_type = models.ForeignKey(SourceType, on_delete=models.CASCADE)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.name
+
+class LeadsGroup(models.Model):
+    name = models.CharField(max_length=100)
+    leads = models.ManyToManyField(Lead)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.name
+
+class Activity(models.Model):
+    lead = models.ForeignKey(Lead, on_delete=models.CASCADE)
+    agent = models.ForeignKey(Agent, on_delete=models.CASCADE)
+    activity_type = models.CharField(max_length=50, choices=[
+        ('call', 'Call'),
+        ('email', 'Email'),
+        ('meeting', 'Meeting'),
+        ('note', 'Note'),
+    ])
+    description = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"{self.activity_type} - {self.lead.name}"
+    
+    class Meta:
+        verbose_name_plural = "Activities"
+
+class Messages(models.Model):
+    lead = models.ForeignKey(Lead, on_delete=models.CASCADE)
+    sender = models.ForeignKey(User, on_delete=models.CASCADE)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Message to {self.lead.name}"
+    
+    class Meta:
+        verbose_name_plural = "Messages"
+
+class Files(models.Model):
+    lead = models.ForeignKey(Lead, on_delete=models.CASCADE)
+    file = models.FileField(upload_to='lead_files/')
+    description = models.CharField(max_length=255, blank=True)
+    uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"File for {self.lead.name}"
+    
+    class Meta:
+        verbose_name_plural = "Files"
+
+class Followups(models.Model):
+    lead = models.ForeignKey(Lead, on_delete=models.CASCADE)
+    agent = models.ForeignKey(Agent, on_delete=models.CASCADE)
+    date = models.DateTimeField()
+    notes = models.TextField(blank=True)
+    completed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"Followup for {self.lead.name}"
+    
+    class Meta:
+        verbose_name_plural = "Followups"
+
+class Form(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    fields = models.JSONField(default=dict)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.name
+
+class Invitation(models.Model):
+    email = models.EmailField()
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    invited_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    token = models.CharField(max_length=100)
+    accepted = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Invitation to {self.email}"
+""")
+
+# Update admin.py file
+with open('leadsapp/admin.py', 'w') as f:
+    f.write("""from django.contrib import admin
+from .models import (
+    Activity,
+    Agent,
+    Company,
+    Files,
+    Followups,
+    Form,
+    Invitation,
+    Lead,
+    LeadsGroup,
+    Messages,
+    Source,
+    SourceType,
+)
+
+# Register models
+admin.site.register(Lead)
+admin.site.register(Activity)
+admin.site.register(Messages)
+admin.site.register(Files)
+admin.site.register(Followups)
+admin.site.register(Company)
+admin.site.register(LeadsGroup)
+admin.site.register(Agent)
+admin.site.register(Form)
+admin.site.register(Source)
+admin.site.register(SourceType)
+admin.site.register(Invitation)
+""")
+
+print("Models and admin updated successfully!")

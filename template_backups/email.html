@@ -1,0 +1,54 @@
+{% extends "account/base.html" %}
+
+{% load i18n %}
+
+{% block head_title %}{% trans "Email Addresses" %}{% endblock %}
+
+{% block content %}
+    <h1>{% trans "Email Addresses" %}</h1>
+    <p>{% trans "Manage the email addresses associated with your account." %}</p>
+
+    <div class="nav-links">
+        <a href="{% url 'account_email' %}">{% trans "Manage Email" %}</a>
+        <a href="{% url 'account_change_password' %}">{% trans "Change Password" %}</a>
+        <a href="{% url 'account_logout' %}">{% trans "Sign Out" %}</a>
+    </div>
+
+    {% if user.emailaddress_set.all %}
+    <form action="{% url 'account_email' %}" method="post">
+        {% csrf_token %}
+        
+        {% for emailaddress in user.emailaddress_set.all %}
+        <div class="email-item">
+            <div class="email-info">
+                <input type="radio" name="email" {% if emailaddress.primary %}checked="checked"{% endif %} value="{{ emailaddress.email }}" id="email_radio_{{ forloop.counter }}" />
+                <label for="email_radio_{{ forloop.counter }}">{{ emailaddress.email }}</label>
+                {% if emailaddress.verified %}
+                {% if emailaddress.primary %}<span class="badge badge-primary">{% trans "Primary" %}</span>{% endif %}
+                {% else %}
+                <span class="badge badge-warning">{% trans "Unverified" %}</span>
+                {% endif %}
+            </div>
+            <div class="email-actions">
+                {% if emailaddress.verified %}
+                <button class="btn btn-secondary" type="submit" name="action_primary" value="{{ emailaddress.email }}">{% trans "Make Primary" %}</button>
+                {% else %}
+                <button class="btn btn-secondary" type="submit" name="action_send" value="{{ emailaddress.email }}">{% trans "Verify" %}</button>
+                {% endif %}
+                <button class="btn btn-secondary" type="submit" name="action_remove" value="{{ emailaddress.email }}">{% trans "Remove" %}</button>
+            </div>
+        </div>
+        {% endfor %}
+    </form>
+    {% endif %}
+
+    <h3 style="margin-top: 30px; margin-bottom: 15px;">{% trans "Add Email Address" %}</h3>
+    <form method="post" action="{% url 'account_email' %}">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="email">{% trans "Email Address" %}:</label>
+            <input type="email" name="email" placeholder="email@example.com" id="email" class="form-control" required>
+        </div>
+        <button name="action_add" type="submit" class="btn btn-primary">{% trans "Add Email" %}</button>
+    </form>
+{% endblock %}

@@ -1,0 +1,35 @@
+from django.contrib import admin
+from leadsapp.models import Lead  # Your existing model
+
+# Register your models here
+admin.site.register(Lead)
+
+# Register models with try/except to avoid "AlreadyRegistered" errors
+try:
+    # Register allauth models
+    from allauth.account.models import EmailAddress, EmailConfirmation
+    admin.site.register(EmailAddress)
+    admin.site.register(EmailConfirmation)
+except admin.sites.AlreadyRegistered:
+    pass  # Already registered
+
+try:
+    # Register FCM Django models
+    from fcm_django.models import FCMDevice
+    admin.site.register(FCMDevice)
+except admin.sites.AlreadyRegistered:
+    pass  # Already registered
+
+try:
+    # Register django-celery-beat models
+    from django_celery_beat.models import (
+        PeriodicTask, IntervalSchedule, CrontabSchedule, 
+        SolarSchedule, ClockedSchedule
+    )
+    admin.site.register(PeriodicTask)
+    admin.site.register(IntervalSchedule)
+    admin.site.register(CrontabSchedule)
+    admin.site.register(SolarSchedule)
+    admin.site.register(ClockedSchedule)
+except admin.sites.AlreadyRegistered:
+    pass  # Already registered

@@ -1,0 +1,31 @@
+from django.contrib import admin
+from .models import (
+    Activity,
+    Agent,
+    Company,
+    Files,
+    Followups,
+    Form,
+    Invitation,
+    Lead,
+    LeadsGroup,
+    Messages,
+    Source,
+    SourceType,
+    User,
+)
+
+# Register models
+admin.site.register(User)
+admin.site.register(Lead)
+admin.site.register(Activity)
+admin.site.register(Messages)
+admin.site.register(Files)
+admin.site.register(Followups)
+admin.site.register(Company)
+admin.site.register(LeadsGroup)
+admin.site.register(Agent)
+admin.site.register(Form)
+admin.site.register(Source)
+admin.site.register(SourceType)
+admin.site.register(Invitation)

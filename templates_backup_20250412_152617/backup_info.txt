@@ -1,0 +1,11 @@
+Backup created on: Sat Apr 12 15:26:17 UTC 2025
+Templates backed up:
+- account/email.html
+- account/logout.html
+- account/password_change.html
+- account/base.html
+- admin/login.html
+
+This backup was created after making the following changes:
+1. Repositioned email action buttons to appear below email addresses
+2. Centered the admin login form on the page
