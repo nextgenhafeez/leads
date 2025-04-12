@@ -10,47 +10,23 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
-      - name: Debug environment
-        run: |
-          echo "GitHub workspace: $GITHUB_WORKSPACE"
-          echo "GitHub ref: $GITHUB_REF"
-          ls -la
-          
       - name: Deploy to EC2
-        env:
-          PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
-          HOST: ${{ secrets.EC2_HOST }}
-          USER: ${{ secrets.EC2_USER }}
-        run: |
-          echo "Setting up SSH connection..."
-          # Write the private key to a file with proper line endings
-          echo "$PRIVATE_KEY" > private_key.pem
-          chmod 600 private_key.pem
-          
-          # Debug SSH connection
-          echo "Testing SSH connection..."
-          ssh -o StrictHostKeyChecking=no -i private_key.pem -v $USER@$HOST 'echo "SSH connection successful"'
-          
-          echo "Deploying to EC2..."
-          # SSH into the EC2 instance and pull the latest changes
-          ssh -o StrictHostKeyChecking=no -i private_key.pem $USER@$HOST '
-            cd ~/leads &&
-            echo "Current directory: $(pwd)" &&
-            echo "Pulling latest changes..." &&
-            git pull origin main &&
-            echo "Activating virtual environment..." &&
-            source venv/bin/activate &&
-            echo "Installing dependencies..." &&
-            pip install -r requirements.txt &&
-            echo "Deployment complete!"
-          '
-          # Clean up
-          rm -f private_key.pem
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/leads
+            git pull origin main
+            source venv/bin/activate
+            pip install -r requirements.txt
+            # Uncomment the following line if you have a systemd service
+            # sudo systemctl restart leads
+            echo "Deployment completed successfully"
